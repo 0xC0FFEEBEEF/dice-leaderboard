@@ -1,0 +1,16 @@
+{
+  "name": "dice-leaderboard",
+  "version": "1.0.0",
+  "description": "A DND dice collection leaderboard for thediceking.net",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "keywords": ["cloudflare", "workers", "dnd", "dice", "leaderboard"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
