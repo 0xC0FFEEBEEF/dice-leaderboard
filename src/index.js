@@ -315,9 +315,16 @@ const HTML_TEMPLATE = `
             e.preventDefault();
             
             const formData = new FormData(e.target);
+            const diceCount = parseInt(formData.get('diceCount'), 10);
+            
+            if (isNaN(diceCount)) {
+                showMessage('Please enter a valid number', 'error');
+                return;
+            }
+            
             const data = {
                 name: formData.get('playerName'),
-                diceCount: parseInt(formData.get('diceCount'))
+                diceCount: diceCount
             };
 
             try {

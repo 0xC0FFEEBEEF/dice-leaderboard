@@ -5,3 +5,4 @@ worker/
 .dev.vars
 .env
 *.log
+package-lock.json
