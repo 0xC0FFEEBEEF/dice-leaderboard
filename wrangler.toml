@@ -4,3 +4,7 @@ compatibility_date = "2024-01-01"
 
 [vars]
 ENVIRONMENT = "production"
+
+[[kv_namespaces]]
+binding = "DICE_KV"
+id = "5b2bdbe1ce95481791ec99703d1d9bdc"
