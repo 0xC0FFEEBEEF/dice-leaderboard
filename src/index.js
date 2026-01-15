@@ -1,11 +1,5 @@
-// In-memory leaderboard storage (for production, consider using Cloudflare KV or D1)
-let leaderboard = [
-  { name: "Gandalf the Grey", diceCount: 127, lastUpdated: new Date().toISOString() },
-  { name: "Aragorn", diceCount: 89, lastUpdated: new Date().toISOString() },
-  { name: "Legolas", diceCount: 76, lastUpdated: new Date().toISOString() },
-  { name: "Gimli", diceCount: 64, lastUpdated: new Date().toISOString() },
-  { name: "Frodo", diceCount: 42, lastUpdated: new Date().toISOString() }
-];
+const SESSION_COOKIE = "dice_session";
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 // HTML Template for the website
 const HTML_TEMPLATE = `
@@ -166,6 +160,55 @@ const HTML_TEMPLATE = `
 
         .section {
             margin-top: 40px;
+        }
+
+        .auth-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+        }
+
+        .auth-card {
+            padding: 24px;
+            border-radius: 18px;
+            background: rgba(19, 26, 43, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            display: grid;
+            gap: 16px;
+        }
+
+        .auth-card h3 {
+            font-size: 1.3rem;
+            color: var(--accent-gold);
+        }
+
+        .auth-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .auth-status {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(78, 205, 196, 0.2);
+            border: 1px solid rgba(78, 205, 196, 0.4);
+            color: var(--accent-teal);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .muted {
+            color: var(--text-muted);
         }
 
         .section-header {
@@ -362,6 +405,12 @@ const HTML_TEMPLATE = `
             justify-self: start;
         }
 
+        .btn.secondary {
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid rgba(139, 92, 246, 0.6);
+            color: #d9c8ff;
+        }
+
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(247, 201, 72, 0.35);
@@ -450,6 +499,69 @@ const HTML_TEMPLATE = `
             </div>
         </section>
 
+        <section id="account" class="section">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Account Hall</h2>
+                    <p class="section-subtitle">Create an account to track your dice bags and edit your count anytime.</p>
+                </div>
+            </div>
+            <div class="auth-grid">
+                <div class="auth-card" id="auth-forms">
+                    <div>
+                        <h3>Create Account</h3>
+                        <p>New here? Claim your vault with an email and password.</p>
+                    </div>
+                    <form id="registerForm" class="form-grid">
+                        <div class="form-group">
+                            <label for="registerName">Display Name</label>
+                            <input type="text" id="registerName" name="displayName" required placeholder="Dice master name">
+                        </div>
+                        <div class="form-group">
+                            <label for="registerEmail">Email</label>
+                            <input type="email" id="registerEmail" name="email" required placeholder="you@domain.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPassword">Password</label>
+                            <input type="password" id="registerPassword" name="password" required minlength="8" placeholder="At least 8 characters">
+                        </div>
+                        <button type="submit" class="btn">Create Account</button>
+                    </form>
+                    <div>
+                        <h3>Returning Player</h3>
+                        <p>Log in to update your dice bag count.</p>
+                    </div>
+                    <form id="loginForm" class="form-grid">
+                        <div class="form-group">
+                            <label for="loginEmail">Email</label>
+                            <input type="email" id="loginEmail" name="email" required placeholder="you@domain.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" name="password" required placeholder="Your password">
+                        </div>
+                        <button type="submit" class="btn secondary">Log In</button>
+                    </form>
+                    <div id="auth-message" class="message"></div>
+                </div>
+
+                <div class="auth-card auth-status" id="account-panel" hidden>
+                    <div class="badge">✅ Logged In</div>
+                    <div>
+                        <p class="muted">Signed in as</p>
+                        <strong id="account-name"></strong>
+                        <div class="muted" id="account-email"></div>
+                    </div>
+                    <div>
+                        <p class="muted">Your dice bags</p>
+                        <div class="top-dice" id="account-bags">0</div>
+                    </div>
+                    <button type="button" class="btn secondary" id="logoutButton">Log Out</button>
+                    <div id="account-message" class="message"></div>
+                </div>
+            </div>
+        </section>
+
         <section id="full-leaderboard" class="section">
             <div class="section-header">
                 <div>
@@ -469,19 +581,16 @@ const HTML_TEMPLATE = `
                 </div>
 
                 <div class="add-section">
-                    <h2>⚔️ Update Your Dice Count</h2>
+                    <h2>⚔️ Update Your Dice Bag Count</h2>
+                    <p class="muted">Log in to edit your dice bag tally and climb the board.</p>
                     <form id="updateForm">
                         <div class="form-grid">
                             <div class="form-group">
-                                <label for="playerName">Player Name</label>
-                                <input type="text" id="playerName" name="playerName" required placeholder="Enter your name">
-                            </div>
-                            <div class="form-group">
-                                <label for="diceCount">Dice Count</label>
-                                <input type="number" id="diceCount" name="diceCount" required placeholder="How many dice do you own?" min="0">
+                                <label for="diceBags">Dice Bags</label>
+                                <input type="number" id="diceBags" name="diceBags" required placeholder="How many dice bags do you own?" min="0">
                             </div>
                         </div>
-                        <button type="submit" class="btn">Update Count</button>
+                        <button type="submit" class="btn">Update Bags</button>
                     </form>
                     <div id="message" class="message"></div>
                 </div>
@@ -517,7 +626,7 @@ const HTML_TEMPLATE = `
                     <article class="top-card">
                         <div class="top-rank">\${medal} Rank \${rank}</div>
                         <div class="top-name">\${escapeHtml(player.name)}</div>
-                        <div class="top-dice">🎲 \${player.diceCount} dice</div>
+                        <div class="top-dice">🎲 \${player.bagCount} bags</div>
                         <div class="top-updated">Updated \${date}</div>
                     </article>
                 \`;
@@ -533,7 +642,7 @@ const HTML_TEMPLATE = `
                     <div class="player-row">
                         <div class="rank \${rank <= 3 ? rankClass : ''}">\${medal || rank}</div>
                         <div class="player-name">\${escapeHtml(player.name)}</div>
-                        <div class="dice-count">🎲 \${player.diceCount}</div>
+                        <div class="dice-count">🎲 \${player.bagCount}</div>
                         <div class="last-updated">\${date}</div>
                     </div>
                 \`;
@@ -546,8 +655,8 @@ const HTML_TEMPLATE = `
             return div.innerHTML;
         }
 
-        function showMessage(text, type) {
-            const messageEl = document.getElementById('message');
+        function showMessage(targetId, text, type) {
+            const messageEl = document.getElementById(targetId);
             messageEl.textContent = text;
             messageEl.className = \`message \${type}\`;
             messageEl.style.display = 'block';
@@ -556,22 +665,119 @@ const HTML_TEMPLATE = `
             }, 5000);
         }
 
+        function setAuthState(user) {
+            const authForms = document.getElementById('auth-forms');
+            const accountPanel = document.getElementById('account-panel');
+            if (user) {
+                authForms.hidden = true;
+                accountPanel.hidden = false;
+                document.getElementById('account-name').textContent = user.displayName;
+                document.getElementById('account-email').textContent = user.email;
+                document.getElementById('account-bags').textContent = user.bagCount;
+                document.getElementById('diceBags').value = user.bagCount;
+            } else {
+                authForms.hidden = false;
+                accountPanel.hidden = true;
+            }
+        }
+
+        async function loadCurrentUser() {
+            try {
+                const response = await fetch('/api/me', { credentials: 'include' });
+                if (!response.ok) {
+                    setAuthState(null);
+                    return;
+                }
+                const user = await response.json();
+                setAuthState(user);
+            } catch (error) {
+                console.error('Error loading user:', error);
+                setAuthState(null);
+            }
+        }
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                displayName: formData.get('displayName'),
+                email: formData.get('email'),
+                password: formData.get('password')
+            };
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    showMessage('auth-message', result.error || 'Registration failed', 'error');
+                    return;
+                }
+                showMessage('auth-message', 'Account created! Welcome to the vault.', 'success');
+                setAuthState(result);
+                loadLeaderboard();
+                e.target.reset();
+            } catch (error) {
+                showMessage('auth-message', 'Registration error. Please try again.', 'error');
+            }
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                email: formData.get('email'),
+                password: formData.get('password')
+            };
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    showMessage('auth-message', result.error || 'Login failed', 'error');
+                    return;
+                }
+                showMessage('auth-message', 'Logged in successfully!', 'success');
+                setAuthState(result);
+                loadLeaderboard();
+                e.target.reset();
+            } catch (error) {
+                showMessage('auth-message', 'Login error. Please try again.', 'error');
+            }
+        });
+
+        document.getElementById('logoutButton').addEventListener('click', async () => {
+            try {
+                await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+                setAuthState(null);
+                showMessage('account-message', 'Logged out.', 'success');
+            } catch (error) {
+                showMessage('account-message', 'Logout failed.', 'error');
+            }
+        });
+
         // Handle form submission
         document.getElementById('updateForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const formData = new FormData(e.target);
-            const diceCount = parseInt(formData.get('diceCount'), 10);
+            const bagCount = parseInt(formData.get('diceBags'), 10);
             
-            if (isNaN(diceCount)) {
-                showMessage('Please enter a valid number', 'error');
+            if (isNaN(bagCount)) {
+                showMessage('message', 'Please enter a valid number', 'error');
                 return;
             }
             
-            const data = {
-                name: formData.get('playerName'),
-                diceCount: diceCount
-            };
+            const data = { bagCount };
 
             try {
                 const response = await fetch('/api/update', {
@@ -579,26 +785,28 @@ const HTML_TEMPLATE = `
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(data),
+                    credentials: 'include'
                 });
 
                 const result = await response.json();
                 
                 if (response.ok) {
-                    showMessage('Dice count updated successfully! 🎲', 'success');
+                    showMessage('message', 'Dice bag count updated successfully! 🎲', 'success');
+                    setAuthState(result);
                     loadLeaderboard();
-                    e.target.reset();
                 } else {
-                    showMessage(result.error || 'Failed to update dice count', 'error');
+                    showMessage('message', result.error || 'Failed to update dice bag count', 'error');
                 }
             } catch (error) {
-                showMessage('Error updating dice count. Please try again.', 'error');
+                showMessage('message', 'Error updating dice bags. Please try again.', 'error');
                 console.error('Error:', error);
             }
         });
 
         // Load leaderboard on page load
         loadLeaderboard();
+        loadCurrentUser();
     </script>
 </body>
 </html>
@@ -614,75 +822,198 @@ function corsHeaders() {
 }
 
 // API Handlers
-async function handleGetLeaderboard() {
-  // Sort by dice count descending
-  const sortedLeaderboard = [...leaderboard].sort((a, b) => b.diceCount - a.diceCount);
-  
-  return new Response(JSON.stringify(sortedLeaderboard), {
+function jsonResponse(data, options = {}) {
+  return new Response(JSON.stringify(data), {
     headers: {
       'Content-Type': 'application/json',
-      ...corsHeaders()
-    }
+      ...corsHeaders(),
+      ...(options.headers || {})
+    },
+    status: options.status || 200
   });
 }
 
-async function handleUpdateDiceCount(request) {
-  try {
-    const data = await request.json();
-    const { name, diceCount } = data;
-
-    // Validation
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return new Response(JSON.stringify({ error: 'Invalid player name' }), {
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders()
-        }
-      });
+function getCookie(request, name) {
+  const cookieHeader = request.headers.get('Cookie') || '';
+  const cookies = cookieHeader.split(';').map(cookie => cookie.trim());
+  for (const cookie of cookies) {
+    const [key, value] = cookie.split('=');
+    if (key === name) {
+      return decodeURIComponent(value);
     }
-
-    if (typeof diceCount !== 'number' || diceCount < 0) {
-      return new Response(JSON.stringify({ error: 'Invalid dice count' }), {
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders()
-        }
-      });
-    }
-
-    // Find existing player or create new entry
-    const existingPlayerIndex = leaderboard.findIndex(
-      p => p.name.toLowerCase() === name.trim().toLowerCase()
-    );
-
-    if (existingPlayerIndex !== -1) {
-      leaderboard[existingPlayerIndex].diceCount = diceCount;
-      leaderboard[existingPlayerIndex].lastUpdated = new Date().toISOString();
-    } else {
-      leaderboard.push({
-        name: name.trim(),
-        diceCount: diceCount,
-        lastUpdated: new Date().toISOString()
-      });
-    }
-
-    return new Response(JSON.stringify({ success: true, message: 'Dice count updated' }), {
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders()
-      }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: 'Invalid request data' }), {
-      status: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders()
-      }
-    });
   }
+  return null;
+}
+
+function buildSessionCookie(token) {
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}`;
+}
+
+function clearSessionCookie() {
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
+function normalizeEmail(email) {
+  return email.trim().toLowerCase();
+}
+
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function hashPassword(password, salt) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`${salt}:${password}`);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function getUser(env, email) {
+  return env.DICE_KV.get(`user:${email}`, { type: 'json' });
+}
+
+async function saveUser(env, user) {
+  await env.DICE_KV.put(`user:${user.email}`, JSON.stringify(user));
+}
+
+async function getSessionEmail(env, request) {
+  const token = getCookie(request, SESSION_COOKIE);
+  if (!token) {
+    return null;
+  }
+  return env.DICE_KV.get(`session:${token}`);
+}
+
+async function handleGetLeaderboard(env) {
+  const listResult = await env.DICE_KV.list({ prefix: 'user:' });
+  const users = await Promise.all(
+    listResult.keys.map(key => env.DICE_KV.get(key.name, { type: 'json' }))
+  );
+  const cleaned = users
+    .filter(Boolean)
+    .map(user => ({
+      name: user.displayName || user.email,
+      bagCount: user.bagCount ?? 0,
+      lastUpdated: user.lastUpdated || new Date().toISOString()
+    }));
+  const sortedLeaderboard = cleaned.sort((a, b) => b.bagCount - a.bagCount);
+  return jsonResponse(sortedLeaderboard);
+}
+
+async function handleRegister(request, env) {
+  const data = await request.json();
+  const displayName = data.displayName?.trim();
+  const email = normalizeEmail(data.email || '');
+  const password = data.password || '';
+
+  if (!displayName) {
+    return jsonResponse({ error: 'Display name is required.' }, { status: 400 });
+  }
+  if (!validateEmail(email)) {
+    return jsonResponse({ error: 'Valid email is required.' }, { status: 400 });
+  }
+  if (password.length < 8) {
+    return jsonResponse({ error: 'Password must be at least 8 characters.' }, { status: 400 });
+  }
+
+  const existing = await getUser(env, email);
+  if (existing) {
+    return jsonResponse({ error: 'Account already exists.' }, { status: 409 });
+  }
+
+  const salt = crypto.randomUUID();
+  const passwordHash = await hashPassword(password, salt);
+  const user = {
+    email,
+    displayName,
+    salt,
+    passwordHash,
+    bagCount: 0,
+    lastUpdated: new Date().toISOString()
+  };
+
+  await saveUser(env, user);
+  const sessionToken = crypto.randomUUID();
+  await env.DICE_KV.put(`session:${sessionToken}`, email, { expirationTtl: SESSION_TTL_SECONDS });
+
+  return jsonResponse(
+    { email: user.email, displayName: user.displayName, bagCount: user.bagCount },
+    { headers: { 'Set-Cookie': buildSessionCookie(sessionToken) } }
+  );
+}
+
+async function handleLogin(request, env) {
+  const data = await request.json();
+  const email = normalizeEmail(data.email || '');
+  const password = data.password || '';
+
+  if (!validateEmail(email) || !password) {
+    return jsonResponse({ error: 'Email and password are required.' }, { status: 400 });
+  }
+
+  const user = await getUser(env, email);
+  if (!user) {
+    return jsonResponse({ error: 'Invalid credentials.' }, { status: 401 });
+  }
+
+  const passwordHash = await hashPassword(password, user.salt);
+  if (passwordHash !== user.passwordHash) {
+    return jsonResponse({ error: 'Invalid credentials.' }, { status: 401 });
+  }
+
+  const sessionToken = crypto.randomUUID();
+  await env.DICE_KV.put(`session:${sessionToken}`, email, { expirationTtl: SESSION_TTL_SECONDS });
+
+  return jsonResponse(
+    { email: user.email, displayName: user.displayName, bagCount: user.bagCount },
+    { headers: { 'Set-Cookie': buildSessionCookie(sessionToken) } }
+  );
+}
+
+async function handleLogout(request, env) {
+  const token = getCookie(request, SESSION_COOKIE);
+  if (token) {
+    await env.DICE_KV.delete(`session:${token}`);
+  }
+  return jsonResponse({ success: true }, { headers: { 'Set-Cookie': clearSessionCookie() } });
+}
+
+async function handleGetMe(request, env) {
+  const email = await getSessionEmail(env, request);
+  if (!email) {
+    return jsonResponse({ error: 'Not authenticated.' }, { status: 401 });
+  }
+  const user = await getUser(env, email);
+  if (!user) {
+    return jsonResponse({ error: 'Account not found.' }, { status: 404 });
+  }
+  return jsonResponse({ email: user.email, displayName: user.displayName, bagCount: user.bagCount });
+}
+
+async function handleUpdateDiceBags(request, env) {
+  const email = await getSessionEmail(env, request);
+  if (!email) {
+    return jsonResponse({ error: 'Please log in to update your dice bags.' }, { status: 401 });
+  }
+
+  const data = await request.json();
+  const bagCount = Number(data.bagCount);
+  if (!Number.isFinite(bagCount) || bagCount < 0) {
+    return jsonResponse({ error: 'Invalid dice bag count.' }, { status: 400 });
+  }
+
+  const user = await getUser(env, email);
+  if (!user) {
+    return jsonResponse({ error: 'Account not found.' }, { status: 404 });
+  }
+
+  user.bagCount = bagCount;
+  user.lastUpdated = new Date().toISOString();
+  await saveUser(env, user);
+
+  return jsonResponse({ email: user.email, displayName: user.displayName, bagCount: user.bagCount });
 }
 
 // Main request handler
@@ -700,11 +1031,27 @@ export default {
 
     // API Routes
     if (path === '/api/leaderboard' && request.method === 'GET') {
-      return handleGetLeaderboard();
+      return handleGetLeaderboard(env);
+    }
+
+    if (path === '/api/register' && request.method === 'POST') {
+      return handleRegister(request, env);
+    }
+
+    if (path === '/api/login' && request.method === 'POST') {
+      return handleLogin(request, env);
+    }
+
+    if (path === '/api/logout' && request.method === 'POST') {
+      return handleLogout(request, env);
+    }
+
+    if (path === '/api/me' && request.method === 'GET') {
+      return handleGetMe(request, env);
     }
 
     if (path === '/api/update' && request.method === 'POST') {
-      return handleUpdateDiceCount(request);
+      return handleUpdateDiceBags(request, env);
     }
 
     // Serve HTML for all other routes
