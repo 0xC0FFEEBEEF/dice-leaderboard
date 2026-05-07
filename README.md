@@ -1,115 +1,80 @@
-# 🎲 The Dice King - DND Dice Leaderboard
+# 🎲 The Dice King - Dice Bag Leaderboard
 
-A sleek, D&D-themed dice collection leaderboard website built with Cloudflare Workers. Track who has the most dice in your gaming group and compete for the title of **The Dice King**!
+A polished, D&D-themed leaderboard for tracking dice bag collections in a tabletop group. The project is built as a single Cloudflare Worker that serves a responsive web app and JSON API backed by Cloudflare KV.
 
-## 🌟 Features
+## ✨ What is included
 
-- **Real-time Leaderboard**: See who's hoarding the most dice
-- **Sleek DND Theme**: Beautiful dark theme with gold accents and D&D aesthetics
-- **Easy Updates**: Players can update their own dice counts
-- **Responsive Design**: Works perfectly on desktop and mobile devices
-- **Fast & Scalable**: Built on Cloudflare Workers for lightning-fast performance worldwide
+- **Hero-first landing page** with animated dice artwork, sticky navigation, and high-impact tabletop styling.
+- **Live stats** for registered players, total tracked dice bags, and the current leader.
+- **Crowned top-three podium** plus a full searchable leaderboard.
+- **Account flows** for registration, login, logout, and authenticated dice bag updates.
+- **Rank tiers** that label players as Initiate, Adventurer, Dice Dragon, or Dice Monarch.
+- **Starter leaderboard data** so new deployments do not look empty before the first account is created.
+- **Cloudflare KV persistence** for users, sessions, and dice bag counts.
 
-## 🚀 Quick Start
+## 🚀 Quick start
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v16 or higher)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
-- A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier works great!)
+- [Node.js](https://nodejs.org/) v16 or newer
+- npm
+- A Cloudflare account for deployment
 
-### Installation
+### Install and run locally
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/0xC0FFEEBEEF/dice-leaderboard.git
-   cd dice-leaderboard
-   ```
+```bash
+npm install
+npm run dev
+```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+The local Worker will be available at `http://localhost:8787`.
 
-3. **Run locally**
-   ```bash
-   npm run dev
-   ```
-   
-   The site will be available at `http://localhost:8787`
+### Deploy
 
-4. **Deploy to Cloudflare Workers**
-   ```bash
-   npm run deploy
-   ```
+```bash
+npm run deploy
+```
 
-## 📖 Usage
+## 🧭 User flow
 
-### Viewing the Leaderboard
+1. Visit the site and review the top-three podium or full rankings.
+2. Create an account with a display name, email, and password.
+3. Enter the number of dice bags you own.
+4. Search the leaderboard to compare your rank with the rest of the table.
+5. Log back in later to update your total as your hoard grows.
 
-Simply visit the website at `thediceking.net` (or your deployed URL). The leaderboard automatically displays all players sorted by dice count.
+## 📝 API endpoints
 
-### Updating Your Dice Count
+- `GET /api/leaderboard` returns ranked public leaderboard entries.
+- `POST /api/register` creates an account and starts a session.
+- `POST /api/login` starts a session for an existing account.
+- `POST /api/logout` clears the active session.
+- `GET /api/me` returns the authenticated user's public profile.
+- `POST /api/update` updates the authenticated user's dice bag count.
 
-1. Scroll to the "Update Your Dice Count" section
-2. Enter your player name
-3. Enter your current dice count
-4. Click "Update Count"
-5. Watch your position on the leaderboard!
+Example update payload:
+
+```json
+{
+  "bagCount": 42
+}
+```
 
 ## 🛠️ Configuration
 
-### Customizing the Site
+The Worker expects a KV namespace bound as `DICE_KV`. The included `wrangler.toml` already declares that binding for deployment.
 
-- **Edit `src/index.js`** to modify the leaderboard logic, styling, or add features
-- **Update `wrangler.toml`** to change the worker name or configuration
-- **Modify the initial leaderboard data** in the `leaderboard` array at the top of `src/index.js`
+To customize the page, edit `src/index.js`. The application HTML, CSS, client-side JavaScript, API handlers, session helpers, and starter leaderboard data all live there.
 
-### Adding Persistent Storage
+## 🎨 Theme notes
 
-The current implementation uses in-memory storage (data resets when the worker restarts). For production use, consider:
+The design uses a dark fantasy palette with gold, teal, violet, and rose accents. Rank tiers currently follow these ranges:
 
-1. **Cloudflare KV**: For simple key-value storage
-2. **Cloudflare D1**: For a full SQL database
-3. **Durable Objects**: For real-time updates and complex state management
-
-## 🎨 Customization
-
-### Changing Colors
-
-The main theme colors are defined in the CSS:
-- Gold/Brass: `#d4af37`
-- Teal: `#4ecdc4`
-- Dark Blue: `#1a1a2e`, `#16213e`, `#0f3460`
-
-### Adding Features
-
-Some ideas for enhancements:
-- Add dice type breakdown (d4, d6, d8, d10, d12, d20)
-- Include photos or avatars
-- Add achievement badges
-- Track dice acquisition history
-- Add authentication for secure updates
-
-## 📝 API Endpoints
-
-- **GET `/api/leaderboard`**: Returns the current leaderboard as JSON
-- **POST `/api/update`**: Updates a player's dice count
-  ```json
-  {
-    "name": "Player Name",
-    "diceCount": 42
-  }
-  ```
-
-## 🤝 Contributing
-
-Feel free to submit issues, fork the repository, and create pull requests for any improvements!
+- **Initiate:** 0–4 bags
+- **Adventurer:** 5–9 bags
+- **Dice Dragon:** 10–19 bags
+- **Dice Monarch:** 20+ bags
 
 ## 📄 License
 
-MIT License - feel free to use this for your own gaming group!
-
-## 🎲 Roll for Initiative!
-
-May the dice be ever in your favor! 👑
+MIT License. Roll boldly and guard your dice hoard well.
